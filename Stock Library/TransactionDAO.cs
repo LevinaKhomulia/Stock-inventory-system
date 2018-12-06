@@ -27,6 +27,74 @@ namespace Stock_Library
             }
         }
 
+        public List<Transaction> GetAllTransactionData(bool itemOUT)
+        {
+            string sqlString = "";
+            try
+            {
+                if (this.listTrans == null)
+                {
+                    if (itemOUT) sqlString = @"select i.itemName, i.qty, s.suppName, s.suppAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Supplier s on t.suppID = s.suppID where t.transactionID like @transactionID";
+                    else sqlString = "select i.itemName, i.qty, c.custName, c.custAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Customer c on t.custID = c.custID where t.transactionID like @transactionID";
+                    using (SqlCommand cmd = new SqlCommand(sqlString, _conn))
+                    {
+                        cmd.Parameters.Clear();
+
+                        if (itemOUT) cmd.Parameters.AddWithValue("@transactionID", $"%{"OUT"}%");
+                        else cmd.Parameters.AddWithValue("@transactionID", $"%{"IN"}%");
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            listTrans = new List<Transaction>();
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    if (itemOUT)
+                                    {
+                                        listTrans.Add(new Transaction
+                                        {
+                                            transactionNumber = reader["transactionNumber"].ToString(),
+                                            transactionID = reader["transactionID"].ToString(),
+                                            transactionDate = reader["transactionDate"].ToString(),
+                                            itemData = new Item { itemID = reader["itemID"].ToString(), itemName = reader["itemName"].ToString(), qty = Convert.ToInt32(reader["qty"]) },
+                                            suppData = null,
+                                            custData = new Customer { custID = reader["custID"].ToString(), custName = reader["custName"].ToString(), custAddress = reader["custAddress"].ToString() },
+                                            qtyBefore = Convert.ToInt32(reader["qtyBefore"]),
+                                            qtyTrans_IN = Convert.ToInt32(reader["qtyTrans_IN"]),
+                                            qtyTrans_OUT = Convert.ToInt32(reader["qtyTrans_OUT"]),
+                                            qtyAfter = Convert.ToInt32(reader["qtyAfter"])
+                                        });
+                                    }
+                                    else
+                                    {
+                                        listTrans.Add(new Transaction
+                                        {
+                                            transactionNumber = reader["transactionNumber"].ToString(),
+                                            transactionID = reader["transactionID"].ToString(),
+                                            transactionDate = reader["transactionDate"].ToString(),
+                                            itemData = new Item { itemID = reader["itemID"].ToString(), itemName = reader["itemName"].ToString(), qty = Convert.ToInt32(reader["qty"]) },
+                                            suppData = new Supplier { suppID = reader["suppID"].ToString(), suppName = reader["suppName"].ToString(), suppAddress = reader["suppAddress"].ToString() },
+                                            custData = null,
+                                            qtyBefore = Convert.ToInt32(reader["qtyBefore"]),
+                                            qtyTrans_IN = Convert.ToInt32(reader["qtyTrans_IN"]),
+                                            qtyTrans_OUT = Convert.ToInt32(reader["qtyTrans_OUT"]),
+                                            qtyAfter = Convert.ToInt32(reader["qtyAfter"])
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return listTrans;
+        }
+
         public void AddTransaction(List<Transaction> _listTrans)
         {
             try
@@ -35,13 +103,17 @@ namespace Stock_Library
 
                 foreach (Transaction transItem in _listTrans)
                 {
-                    using (SqlCommand cmd = new SqlCommand(@"insert into Trans values (@transactionNumber, @transactionID, @transactionDate, @itemID, @qtyBefore, @qtyTrans_IN, @qtyTrans_OUT, @qtyAfter)", _conn, _trans))
+                    using (SqlCommand cmd = new SqlCommand(@"insert into Trans values (@transactionNumber, @transactionID, @transactionDate, @itemID, @suppID, @custID, @qtyBefore, @qtyTrans_IN, @qtyTrans_OUT, @qtyAfter)", _conn, _trans))
                     {
                         cmd.Parameters.Clear();
                         cmd.Parameters.AddWithValue("@transactionNumber", transItem.transactionNumber);
                         cmd.Parameters.AddWithValue("@transactionID", transItem.transactionID);
                         cmd.Parameters.AddWithValue("@transactionDate", transItem.transactionDate);
                         cmd.Parameters.AddWithValue("@itemID", transItem.itemData.itemID);
+                        if (transItem.suppData == null) cmd.Parameters.AddWithValue("@suppID", DBNull.Value);
+                        else cmd.Parameters.AddWithValue("@suppID", transItem.suppData.suppID);
+                        if (transItem.custData == null) cmd.Parameters.AddWithValue("@custID", DBNull.Value);
+                        else cmd.Parameters.AddWithValue("@custID", transItem.custData.custID);
                         cmd.Parameters.AddWithValue("@qtyBefore", transItem.qtyBefore);
                         cmd.Parameters.AddWithValue("@qtyTrans_IN", transItem.qtyTrans_IN);
                         cmd.Parameters.AddWithValue("@qtyTrans_OUT", transItem.qtyTrans_OUT);
@@ -90,6 +162,43 @@ namespace Stock_Library
                 else
                 {
                     result = $"{(int.Parse(result) + 1).ToString("00000")}";
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return result;
+        }
+
+        public string GetTransactionIDNext(bool itemOUT)
+        {
+            string result = "";
+            try
+            {
+                if (itemOUT)
+                {
+                    if (listTrans?.Count > 0)
+                    {
+                        var res = this.listTrans.Last();
+                        result = "OUT" + (Convert.ToInt32(res.transactionID.Substring(3, 4)) + 1).ToString("0000");
+                    }
+                    else
+                    {
+                        result = "OUT0001";
+                    }
+                }
+                else
+                {
+                    if (listTrans?.Count > 0)
+                    {
+                        var res = this.listTrans.Last();
+                        result = "IN" + (Convert.ToInt32(res.transactionID.Substring(2, 4)) + 1).ToString("0000");
+                    }
+                    else
+                    {
+                        result = "IN0001";
+                    }
                 }
             }
             catch (Exception ex)
