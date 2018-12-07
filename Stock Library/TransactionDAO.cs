@@ -34,8 +34,8 @@ namespace Stock_Library
             {
                 if (this.listTrans == null)
                 {
-                    if (itemOUT) sqlString = @"select i.itemName, i.qty, s.suppName, s.suppAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Supplier s on t.suppID = s.suppID where t.transactionID like @transactionID";
-                    else sqlString = "select i.itemName, i.qty, c.custName, c.custAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Customer c on t.custID = c.custID where t.transactionID like @transactionID";
+                    if (itemOUT) sqlString = @"select i.itemName, i.qty, c.custName, c.custAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Customer c on t.custID = c.custID where t.transactionID like @transactionID";
+                    else sqlString = @"select i.itemName, i.qty, s.suppName, s.suppAddress, t.* from Trans t join Item i on t.itemID = i.itemID join Supplier s on t.suppID = s.suppID where t.transactionID like @transactionID";
                     using (SqlCommand cmd = new SqlCommand(sqlString, _conn))
                     {
                         cmd.Parameters.Clear();
@@ -205,6 +205,64 @@ namespace Stock_Library
             {
                 throw ex;
             }
+            return result;
+        }
+
+        public List<Transaction> GetAllTransactionByItemID(string _itemID)
+        {
+            List<Transaction> result = null;
+
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(@"select i.itemName, i.qty, t.* from Trans t join Item i on t.itemID = i.itemID where t.itemID = @itemID", _conn))
+                {
+                    cmd.Parameters.Clear();
+                    cmd.Parameters.AddWithValue("@itemID", _itemID);
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        result = new List<Transaction>();
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                if (reader["transactionID"].ToString().Substring(0, 2).Equals("IN"))
+                                {
+                                    result.Add(new Transaction
+                                    {
+                                        transactionNumber = reader["transactionNumber"].ToString(),
+                                        transactionID = reader["transactionID"].ToString(),
+                                        transactionDate = reader["transactionDate"].ToString(),
+                                        itemData = new Item { itemID = reader["itemID"].ToString(), itemName = reader["itemName"].ToString(), qty = Convert.ToInt32(reader["qty"]) },
+                                        qtyBefore = Convert.ToInt32(reader["qtyBefore"]),
+                                        qtyTrans_IN = Convert.ToInt32(reader["qtyTrans_IN"]),
+                                        qtyTrans_OUT = Convert.ToInt32(reader["qtyTrans_OUT"]),
+                                        qtyAfter = Convert.ToInt32(reader["qtyAfter"])
+                                    });
+                                }
+                                else
+                                {
+                                    result.Add(new Transaction
+                                    {
+                                        transactionNumber = reader["transactionNumber"].ToString(),
+                                        transactionID = reader["transactionID"].ToString(),
+                                        transactionDate = reader["transactionDate"].ToString(),
+                                        itemData = new Item { itemID = reader["itemID"].ToString(), itemName = reader["itemName"].ToString(), qty = Convert.ToInt32(reader["qty"]) },
+                                        qtyBefore = Convert.ToInt32(reader["qtyBefore"]),
+                                        qtyTrans_IN = Convert.ToInt32(reader["qtyTrans_IN"]),
+                                        qtyTrans_OUT = Convert.ToInt32(reader["qtyTrans_OUT"]),
+                                        qtyAfter = Convert.ToInt32(reader["qtyAfter"])
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
             return result;
         }
 
